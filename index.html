@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Science Digital Library</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- ADD THIS LINE HERE -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="top-header">
+
+    <div class="brand">
+        <div>
+            <h1>Data Science Digital Library</h1>
+            <p>Learning • Modules • Experiments • Tools &amp; Resources</p>
+        </div>
+    </div>
+
+    <div class="profile-card">
+
+        <div class="photo-wrapper">
+            <img id="profilePhoto"
+                 src=""
+                 alt="ID Photo">
+            <label for="profilePhotoInput" class="photo-edit">✎</label>
+            <input type="file"
+                   id="profilePhotoInput"
+                   accept="image/*"
+                   hidden>
+        </div>
+
+        <div class="profile-details">
+            <h3 id="profileName">M. Hemamalini</h3>
+
+            <p>
+                <strong>Roll No:</strong>
+                <span id="profileRoll">24102A030060</span>
+            </p>
+
+            <p>
+                <strong>Branch:</strong>
+                <span id="profileBranch">DS</span>
+            </p>
+
+            <p>
+                <strong>Faculty:</strong>
+                <span id="profileFaculty">Bose Babu</span>
+            </p>
+        </div>
+
+        <button class="edit-profile-btn" onclick="openProfileModal()">
+            ✎ Edit
+        </button>
+
+    </div>
+</header>
+
+<nav class="page-nav" aria-label="Main navigation">
+    <button class="page-nav-link active"
+            type="button"
+            data-page="home"
+            aria-current="page"
+            onclick="showPage('home')">
+        Home
+    </button>
+    <button class="page-nav-link"
+            type="button"
+            data-page="tools"
+            onclick="showPage('tools')">
+        Tools &amp; Resources
+    </button>
+    <button class="page-nav-link"
+            type="button"
+            onclick="openPdfFlipbook()">
+        PDF Flipbook
+    </button>
+</nav>
+
+<main id="homePage">
+
+<!-- ================= MODULE SECTION ================= -->
+
+<section class="section-card modules-section">
+
+    <div class="section-title">
+        <div>
+            <h2>Modules</h2>
+            <p>Manage your Data Science learning modules</p>
+        </div>
+
+        <button class="primary-btn" onclick="openAddModuleModal()">
+            + Add Module
+        </button>
+    </div>
+
+    <div id="moduleList" class="module-grid"></div>
+
+    <div id="moduleEmpty" class="empty-message">
+        No modules added yet. Click <b>+ Add Module</b> to create one.
+    </div>
+
+</section>
+
+
+<!-- ================= EXPERIMENT SECTION ================= -->
+
+<section class="section-card experiments-section">
+
+    <div class="section-title">
+        <div>
+            <h2>Experiments</h2>
+            <p>Add and manage your Data Science experiments</p>
+        </div>
+    </div>
+
+    <div class="experiment-layout">
+
+        <!-- MAIN EXPERIMENTS -->
+        <div class="experiment-panel">
+
+            <div class="panel-header">
+                <span>Main Experiments</span>
+                <span id="mainExpCount" class="count-badge">0</span>
+            </div>
+
+            <div id="mainExpList" class="panel-list"></div>
+
+            <button class="add-panel-btn" onclick="openMainExperimentModal()">
+                + Add Main Experiment
+            </button>
+
+        </div>
+
+
+        <!-- SUB EXPERIMENTS -->
+        <div class="experiment-panel">
+
+            <div class="panel-header">
+                <span>Sub Experiments</span>
+                <span id="subExpCount" class="count-badge">0</span>
+            </div>
+
+            <div id="subExpList" class="panel-list"></div>
+
+            <button class="add-panel-btn" onclick="openSubExperimentModal()">
+                + Add Sub Experiment
+            </button>
+
+        </div>
+
+
+        <!-- CODE PANEL -->
+        <div class="code-panel">
+
+            <div class="code-panel-header">
+
+                <div>
+                    <h3 id="selectedExperimentTitle">
+                        Select a Sub Experiment
+                    </h3>
+                    <span id="selectedPdfArea"></span>
+                </div>
+
+                <button
+                    id="editSubBtn"
+                    class="small-btn"
+                    onclick="editSelectedSubExperiment()"
+                    disabled>
+                    ✎ Edit
+                </button>
+
+            </div>
+
+            <div class="code-tabs">
+
+                <button id="codeTabButton"
+                        class="code-tab active"
+                        onclick="showCodeTab()">
+                    &lt;/&gt; Code
+                </button>
+
+                <button id="outputTabButton"
+                        class="code-tab"
+                        onclick="showOutputTab()">
+                    &gt;_ Output
+                </button>
+
+                <div class="code-actions">
+                    <button onclick="runCode()" class="run-btn">
+                        ▶ Run
+                    </button>
+
+                    <button onclick="copyCode()" class="copy-btn">
+                        Copy
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="code-area">
+
+                <textarea id="codeEditor"
+                          placeholder="Select a sub experiment to view code..."
+                          spellcheck="false"></textarea>
+
+                <div id="outputViewer"
+                     role="status"
+                     aria-live="polite"
+                     hidden></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+</main>
+
+<!-- ================= TOOLS AND RESOURCES PAGE ================= -->
+<main id="toolsPage" hidden>
+
+    <section class="section-card">
+        <div class="section-title">
+            <div>
+                <h2>Data Science Tools</h2>
+                <p>Explore popular tools for every stage of a data science workflow.</p>
+            </div>
+        </div>
+
+        <div class="resource-grid">
+            <article class="resource-card">
+                <span class="resource-category">Programming</span>
+                <h3>Python</h3>
+                <p>A versatile language used for data analysis, automation, and machine learning.</p>
+                <a href="https://www.python.org/" target="_blank" rel="noopener noreferrer">Visit Python <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Programming</span>
+                <h3>R</h3>
+                <p>A language and environment designed for statistical computing and graphics.</p>
+                <a href="https://www.r-project.org/" target="_blank" rel="noopener noreferrer">Visit R Project <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Notebooks</span>
+                <h3>Jupyter</h3>
+                <p>Create and share interactive notebooks containing code, explanations, and visualizations.</p>
+                <a href="https://jupyter.org/" target="_blank" rel="noopener noreferrer">Visit Jupyter <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Notebooks</span>
+                <h3>Google Colab</h3>
+                <p>Run Python notebooks in your browser with hosted compute resources.</p>
+                <a href="https://colab.research.google.com/" target="_blank" rel="noopener noreferrer">Open Colab <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Data analysis</span>
+                <h3>NumPy &amp; pandas</h3>
+                <p>Work efficiently with numerical arrays, tables, and data-cleaning workflows.</p>
+                <a href="https://numpy.org/" target="_blank" rel="noopener noreferrer">Explore NumPy <span aria-hidden="true">↗</span></a>
+                <a href="https://pandas.pydata.org/" target="_blank" rel="noopener noreferrer">Explore pandas <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Databases</span>
+                <h3>SQL &amp; PostgreSQL</h3>
+                <p>Query, organize, and manage structured data in relational databases.</p>
+                <a href="https://www.postgresql.org/" target="_blank" rel="noopener noreferrer">Explore PostgreSQL <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Data engineering</span>
+                <h3>Apache Spark</h3>
+                <p>Process and analyze large datasets with a distributed computing engine.</p>
+                <a href="https://spark.apache.org/" target="_blank" rel="noopener noreferrer">Explore Spark <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Development</span>
+                <h3>Visual Studio Code</h3>
+                <p>A code editor with extensions for Python, notebooks, Git, and data workflows.</p>
+                <a href="https://code.visualstudio.com/" target="_blank" rel="noopener noreferrer">Explore VS Code <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Version control</span>
+                <h3>Git &amp; GitHub</h3>
+                <p>Track code changes and collaborate on data-science projects.</p>
+                <a href="https://github.com/" target="_blank" rel="noopener noreferrer">Visit GitHub <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Machine learning</span>
+                <h3>scikit-learn</h3>
+                <p>Build and evaluate traditional machine-learning models with Python.</p>
+                <a href="https://scikit-learn.org/" target="_blank" rel="noopener noreferrer">Explore scikit-learn <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Deep learning</span>
+                <h3>TensorFlow &amp; PyTorch</h3>
+                <p>Develop and train neural networks for deep-learning applications.</p>
+                <a href="https://www.tensorflow.org/" target="_blank" rel="noopener noreferrer">Explore TensorFlow <span aria-hidden="true">↗</span></a>
+                <a href="https://pytorch.org/" target="_blank" rel="noopener noreferrer">Explore PyTorch <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Visualization</span>
+                <h3>Matplotlib &amp; Seaborn</h3>
+                <p>Turn datasets into clear plots and statistical visualizations.</p>
+                <a href="https://matplotlib.org/" target="_blank" rel="noopener noreferrer">Explore Matplotlib <span aria-hidden="true">↗</span></a>
+                <a href="https://seaborn.pydata.org/" target="_blank" rel="noopener noreferrer">Explore Seaborn <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Business intelligence</span>
+                <h3>Power BI &amp; Tableau</h3>
+                <p>Build interactive dashboards and communicate insights to stakeholders.</p>
+                <a href="https://powerbi.microsoft.com/" target="_blank" rel="noopener noreferrer">Explore Power BI <span aria-hidden="true">↗</span></a>
+                <a href="https://www.tableau.com/" target="_blank" rel="noopener noreferrer">Explore Tableau <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Data discovery</span>
+                <h3>Kaggle</h3>
+                <p>Find datasets, join data-science competitions, and practice in hosted notebooks.</p>
+                <a href="https://www.kaggle.com/" target="_blank" rel="noopener noreferrer">Visit Kaggle <span aria-hidden="true">↗</span></a>
+            </article>
+        </div>
+    </section>
+
+    <section class="section-card">
+        <div class="section-title">
+            <div>
+                <h2>Learning &amp; Data Resources</h2>
+                <p>Trusted documentation, courses, and open datasets to support your learning.</p>
+            </div>
+        </div>
+
+        <div class="resource-grid">
+            <article class="resource-card">
+                <span class="resource-category">Documentation</span>
+                <h3>Python Documentation</h3>
+                <p>Official language tutorials, library references, and guides.</p>
+                <a href="https://docs.python.org/3/" target="_blank" rel="noopener noreferrer">Read the docs <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Documentation</span>
+                <h3>pandas User Guide</h3>
+                <p>Guides for importing, cleaning, transforming, and analyzing tabular data.</p>
+                <a href="https://pandas.pydata.org/docs/user_guide/" target="_blank" rel="noopener noreferrer">Read the guide <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Learning</span>
+                <h3>Kaggle Learn</h3>
+                <p>Short practical courses in Python, data visualization, SQL, and machine learning.</p>
+                <a href="https://www.kaggle.com/learn" target="_blank" rel="noopener noreferrer">Explore courses <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Learning</span>
+                <h3>SQLBolt</h3>
+                <p>Interactive lessons and exercises for learning SQL fundamentals.</p>
+                <a href="https://sqlbolt.com/" target="_blank" rel="noopener noreferrer">Learn SQL <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Open datasets</span>
+                <h3>UCI Machine Learning Repository</h3>
+                <p>Browse classic datasets used for machine-learning research and education.</p>
+                <a href="https://archive.ics.uci.edu/" target="_blank" rel="noopener noreferrer">Browse datasets <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="resource-card">
+                <span class="resource-category">Open datasets</span>
+                <h3>Data.gov</h3>
+                <p>Discover public datasets published by United States government agencies.</p>
+                <a href="https://data.gov/" target="_blank" rel="noopener noreferrer">Find datasets <span aria-hidden="true">↗</span></a>
+            </article>
+        </div>
+    </section>
+
+</main>
+
+
+<!-- ================= PROFILE MODAL ================= -->
+
+<div id="profileModal" class="modal" hidden>
+
+    <div class="modal-box">
+
+        <div class="modal-header">
+            <div>
+                <h2>Edit Profile</h2>
+                <p>Update your student information</p>
+            </div>
+
+            <button onclick="closeProfileModal()" class="close-btn">
+                ×
+            </button>
+        </div>
+
+        <div class="modal-body">
+
+            <div class="profile-edit-photo">
+
+                <img id="profilePreview"
+                     src=""
+                     alt="Profile Preview">
+
+                <label for="profilePhotoInputModal"
+                       class="change-photo-btn">
+                    Change Photo
+                </label>
+
+                <input type="file"
+                       id="profilePhotoInputModal"
+                       accept="image/*"
+                       hidden>
+
+            </div>
+
+            <label>Name</label>
+            <input id="editName"
+                   class="input"
+                   type="text">
+
+            <label>Roll Number</label>
+            <input id="editRoll"
+                   class="input"
+                   type="text">
+
+            <label>Branch</label>
+            <input id="editBranch"
+                   class="input"
+                   type="text">
+
+            <label>Faculty</label>
+            <input id="editFaculty"
+                   class="input"
+                   type="text">
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button class="secondary-btn"
+                    onclick="closeProfileModal()">
+                Cancel
+            </button>
+
+            <button class="primary-btn"
+                    onclick="saveProfile()">
+                Save Changes
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= MODULE MODAL ================= -->
+
+<div id="moduleModal" class="modal" hidden>
+
+    <div class="modal-box">
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="moduleModalTitle">Add Module</h2>
+                <p>Create a new learning module</p>
+            </div>
+
+            <button onclick="closeModuleModal()" class="close-btn">
+                ×
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <input type="hidden" id="moduleEditIndex">
+
+            <label>Module Title</label>
+            <input id="moduleTitle"
+                   class="input"
+                   type="text"
+                   placeholder="Example: Python Programming">
+
+            <label>Description</label>
+            <textarea id="moduleDescription"
+                      class="input"
+                      rows="4"
+                      placeholder="Enter module description"></textarea>
+
+            <label>Number of Topics</label>
+            <input id="moduleTopics"
+                   class="input"
+                   type="number"
+                   min="0"
+                   placeholder="Example: 10">
+
+            <label for="moduleColor">Module Colour</label>
+            <input id="moduleColor"
+                   class="color-input"
+                   type="color"
+                   value="#e8eef4">
+
+            <label>Module PDF</label>
+
+            <input id="modulePdf"
+                   type="file"
+                   accept="application/pdf"
+                   class="file-input">
+
+            <span id="modulePdfName"
+                  class="file-name">
+            </span>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button class="secondary-btn"
+                    onclick="closeModuleModal()">
+                Cancel
+            </button>
+
+            <button class="primary-btn"
+                    onclick="saveModule()">
+                Save Module
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= READ MODULE MODAL ================= -->
+
+<div id="readModuleModal" class="modal" hidden>
+
+    <div class="modal-box large-modal pdf-modal">
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="readModuleTitle">Module</h2>
+                <p id="readModuleSubtitle">Module details</p>
+            </div>
+
+            <button onclick="closeReadModuleModal()"
+                    class="close-btn">
+                ×
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <div id="readModuleDescriptionBox" class="detail-box">
+
+                <h4>Description</h4>
+                <p id="readModuleDescription"></p>
+
+            </div>
+
+            <div id="readModuleTopicsBox" class="detail-box">
+
+                <h4>Topics</h4>
+                <p id="readModuleTopics"></p>
+
+            </div>
+
+            <div id="readModulePdfBox"
+                 class="detail-box">
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button class="secondary-btn"
+                    onclick="closeReadModuleModal()">
+                Close
+            </button>
+
+            <button class="primary-btn"
+                    id="readModuleEditButton"
+                    onclick="editReadModule()">
+                Edit Module
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= MAIN EXPERIMENT MODAL ================= -->
+
+<div id="mainExperimentModal"
+     class="modal"
+     hidden>
+
+    <div class="modal-box">
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="mainExperimentModalTitle">
+                    Add Main Experiment
+                </h2>
+
+                <p>Create an experiment group</p>
+            </div>
+
+            <button onclick="closeMainExperimentModal()"
+                    class="close-btn">
+                ×
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <input type="hidden"
+                   id="mainExperimentEditIndex">
+
+            <label>Experiment Title</label>
+
+            <input id="mainExperimentTitle"
+                   class="input"
+                   type="text"
+                   placeholder="Example: Data Preprocessing">
+
+            <label>Description</label>
+
+            <textarea id="mainExperimentDescription"
+                      class="input"
+                      rows="4"
+                      placeholder="Enter experiment description"></textarea>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button class="secondary-btn"
+                    onclick="closeMainExperimentModal()">
+                Cancel
+            </button>
+
+            <button class="primary-btn"
+                    onclick="saveMainExperiment()">
+                Save Experiment
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= SUB EXPERIMENT MODAL ================= -->
+
+<div id="subExperimentModal"
+     class="modal"
+     hidden>
+
+    <div class="modal-box large-modal">
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="subExperimentModalTitle">
+                    Add Sub Experiment
+                </h2>
+
+                <p>Add code, output and PDF</p>
+            </div>
+
+            <button onclick="closeSubExperimentModal()"
+                    class="close-btn">
+                ×
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <input type="hidden"
+                   id="subExperimentEditIndex">
+
+            <label>Main Experiment</label>
+
+            <select id="subExperimentMain"
+                    class="input">
+            </select>
+
+            <label>Sub Experiment Title</label>
+
+            <input id="subExperimentTitle"
+                   class="input"
+                   type="text"
+                   placeholder="Example: Loading Dataset">
+
+            <label>PDF File</label>
+
+            <input id="subExperimentPdf"
+                   type="file"
+                   accept="application/pdf"
+                   class="file-input">
+
+            <span id="subExperimentPdfName"
+                  class="file-name">
+            </span>
+
+            <label>Code</label>
+
+            <textarea id="subExperimentCode"
+                      class="input code-input"
+                      rows="9"
+                      placeholder="Write your code here..."></textarea>
+
+            <label>Sample Output</label>
+
+            <textarea id="subExperimentOutput"
+                      class="input code-input"
+                      rows="6"
+                      placeholder="Enter sample output..."></textarea>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button class="secondary-btn"
+                    onclick="closeSubExperimentModal()">
+                Cancel
+            </button>
+
+            <button class="primary-btn"
+                    onclick="saveSubExperiment()">
+                Save Sub Experiment
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= TOAST ================= -->
+
+<div id="toast"
+     class="toast"
+     hidden>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
