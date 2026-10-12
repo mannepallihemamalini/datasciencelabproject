@@ -93,6 +93,9 @@ async function loadData(key, defaultValue) {
     try {
         const data = await readStoredData(key);
         if (data !== undefined) {
+            if (Array.isArray(data) && data.length === 0 && Array.isArray(defaultValue) && defaultValue.length > 0) {
+                return defaultValue;
+            }
             return data;
         }
     } catch (error) {
@@ -106,6 +109,9 @@ async function loadData(key, defaultValue) {
         }
 
         const data = JSON.parse(legacyData);
+        if (Array.isArray(data) && data.length === 0 && Array.isArray(defaultValue) && defaultValue.length > 0) {
+            return defaultValue;
+        }
         try {
             await writeStoredData(key, data);
         } catch (error) {
@@ -2052,12 +2058,14 @@ document.addEventListener(
         document.body.inert = true;
         document.body.setAttribute("aria-busy", "true");
 
+        const initial = window.INITIAL_DATA || {};
+
         try {
             [profile, modules, mainExperiments, subExperiments] = await Promise.all([
-                loadData(PROFILE_KEY, defaultProfile),
-                loadData(MODULE_KEY, []),
-                loadData(MAIN_EXP_KEY, []),
-                loadData(SUB_EXP_KEY, [])
+                loadData(PROFILE_KEY, initial.profile || defaultProfile),
+                loadData(MODULE_KEY, initial.modules || []),
+                loadData(MAIN_EXP_KEY, initial.mainExperiments || []),
+                loadData(SUB_EXP_KEY, initial.subExperiments || [])
             ]);
         } finally {
             document.body.inert = false;
