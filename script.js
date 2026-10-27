@@ -686,17 +686,7 @@ function renderModules() {
 
                 <button class="read-btn"
                         onclick="openReadModuleModal(${index})">
-                    View
-                </button>
-
-                <button class="edit-btn"
-                        onclick="openEditModuleModal(${index})">
-                    Edit
-                </button>
-
-                <button class="delete-btn"
-                        onclick="deleteModule(${index})">
-                    Delete
+                    View Module
                 </button>
 
             </div>
@@ -737,7 +727,8 @@ function openReadModuleModal(index) {
     document.getElementById("readModuleDescriptionBox").hidden = false;
     document.getElementById("readModuleTopicsBox").hidden = false;
     document.getElementById("readModuleInfo").hidden = false;
-    document.getElementById("readModuleEditButton").hidden = false;
+    const readModEditBtn = document.getElementById("readModuleEditButton");
+    if (readModEditBtn) readModEditBtn.hidden = true;
     document.getElementById("readModulePdfBox").innerHTML =
         createPdfViewerMarkup();
 
@@ -766,7 +757,8 @@ function openPdfFlipbook() {
     document.getElementById("readModuleDescriptionBox").hidden = true;
     document.getElementById("readModuleTopicsBox").hidden = true;
     document.getElementById("readModuleInfo").hidden = true;
-    document.getElementById("readModuleEditButton").hidden = true;
+    const rmeb1 = document.getElementById("readModuleEditButton");
+    if (rmeb1) rmeb1.hidden = true;
     document.getElementById("readModulePdfBox").innerHTML =
         createPdfViewerMarkup();
     document.getElementById("readModuleModal").hidden = false;
@@ -793,7 +785,8 @@ function openSubExperimentPdf(index) {
     document.getElementById("readModuleDescriptionBox").hidden = true;
     document.getElementById("readModuleTopicsBox").hidden = true;
     document.getElementById("readModuleInfo").hidden = true;
-    document.getElementById("readModuleEditButton").hidden = true;
+    const rmeb1 = document.getElementById("readModuleEditButton");
+    if (rmeb1) rmeb1.hidden = true;
     document.getElementById("readModulePdfBox").innerHTML =
         createPdfViewerMarkup();
     document.getElementById("readModuleModal").hidden = false;
@@ -1358,24 +1351,6 @@ function renderMainExperiments() {
             `;
         }
 
-        const photoInputId = `main-exp-photo-${exp.id}`;
-        const photoInput = document.createElement("input");
-        photoInput.type = "file";
-        photoInput.id = photoInputId;
-        photoInput.accept = "image/*";
-        photoInput.hidden = true;
-        photoInput.addEventListener("change", () => {
-            handleMainExperimentPhoto(exp.id, photoInput.files[0]);
-            photoInput.value = "";
-        });
-
-        const photoEdit = document.createElement("button");
-        photoEdit.type = "button";
-        photoEdit.className = "main-exp-photo-edit";
-        photoEdit.textContent = "Edit photo";
-        photoEdit.addEventListener("click", () => photoInput.click());
-        picture.append(photoEdit, photoInput);
-
         const details = document.createElement("div");
         details.className = "main-exp-details";
         details.innerHTML = `
@@ -1397,19 +1372,6 @@ function renderMainExperiments() {
             selectedSubExperimentId = null;
             renderMainExperiments();
             renderCodePanel();
-        });
-
-        const actions = document.createElement("div");
-        actions.className = "item-actions main-exp-actions";
-        actions.innerHTML = `
-            <button type="button" class="edit-btn">Edit</button>
-            <button type="button" class="delete-btn">Delete</button>
-        `;
-        actions.querySelector(".edit-btn").addEventListener("click", () => {
-            openMainExperimentModal(index);
-        });
-        actions.querySelector(".delete-btn").addEventListener("click", () => {
-            deleteMainExperiment(index);
         });
 
         const head = document.createElement("div");
@@ -1475,26 +1437,11 @@ function renderMainExperiments() {
                 `;
                 select.appendChild(subDetails);
                 row.appendChild(select);
-
-                const editButton = document.createElement("button");
-                editButton.type = "button";
-                editButton.className = "nested-sub-action";
-                editButton.textContent = "Edit";
-                editButton.addEventListener("click", () => openSubExperimentModal(subIndex));
-                row.appendChild(editButton);
-
-                const deleteButton = document.createElement("button");
-                deleteButton.type = "button";
-                deleteButton.className = "nested-sub-action nested-sub-delete";
-                deleteButton.textContent = "Delete";
-                deleteButton.addEventListener("click", () => deleteSubExperiment(subIndex));
-                row.appendChild(deleteButton);
                 nested.appendChild(row);
             });
         }
 
         item.appendChild(nested);
-        item.appendChild(actions);
         list.appendChild(item);
     });
 }
@@ -1944,9 +1891,12 @@ function renderCodePanel() {
         const subIndex = subExperiments.indexOf(sub);
         title.textContent = `${getSubExperimentSerial(subIndex)}. ${sub.title}`;
     }
-    if (code) code.value = sub.code || "";
+    if (code) {
+        code.value = sub.code || "";
+        code.readOnly = true;
+    }
     if (output) renderPythonOutput(output, sub.output || "", sub.outputImages || []);
-    if (editBtn) editBtn.disabled = false;
+    if (editBtn) editBtn.disabled = true;
 
 
     if (pdfArea) {
@@ -2402,54 +2352,28 @@ document.addEventListener(
         const initial = window.INITIAL_DATA || {};
 
         try {
-            [profile, modules, mainExperiments, subExperiments] = await Promise.all([
-                loadData(PROFILE_KEY, initial.profile || defaultProfile),
-                loadData(MODULE_KEY, initial.modules || []),
-                loadData(MAIN_EXP_KEY, initial.mainExperiments || []),
-                loadData(SUB_EXP_KEY, initial.subExperiments || [])
-            ]);
-
-            // Sync mainExperiments and subExperiments from INITIAL_DATA if missing or lacking outputs
-            let needSaveMain = false;
-            let needSaveSub = false;
-
-            if (Array.isArray(initial.mainExperiments)) {
-                for (const initialMain of initial.mainExperiments) {
-                    const existingMain = mainExperiments.find(m => m.id === initialMain.id || m.title === initialMain.title);
-                    if (!existingMain) {
-                        mainExperiments.push(initialMain);
-                        needSaveMain = true;
-                    } else if (!existingMain.photo && initialMain.photo) {
-                        existingMain.photo = initialMain.photo;
-                        needSaveMain = true;
-                    }
+            if (initial && initial.mainExperiments && initial.mainExperiments.length > 0) {
+                profile = initial.profile || defaultProfile;
+                modules = initial.modules || [];
+                mainExperiments = initial.mainExperiments || [];
+                subExperiments = initial.subExperiments || [];
+                try {
+                    await Promise.all([
+                        saveData(PROFILE_KEY, profile),
+                        saveData(MODULE_KEY, modules),
+                        saveData(MAIN_EXP_KEY, mainExperiments),
+                        saveData(SUB_EXP_KEY, subExperiments)
+                    ]);
+                } catch (storageError) {
+                    console.warn("Storage sync:", storageError);
                 }
-            }
-
-            if (Array.isArray(initial.subExperiments)) {
-                for (const initialSub of initial.subExperiments) {
-                    const existingSub = subExperiments.find(s => s.id === initialSub.id || (s.title === initialSub.title && s.mainExperimentId === initialSub.mainExperimentId));
-                    if (!existingSub) {
-                        subExperiments.push(initialSub);
-                        needSaveSub = true;
-                    } else {
-                        if ((!existingSub.outputImages || existingSub.outputImages.length === 0) && Array.isArray(initialSub.outputImages) && initialSub.outputImages.length > 0) {
-                            existingSub.outputImages = initialSub.outputImages;
-                            needSaveSub = true;
-                        }
-                        if ((!existingSub.output || existingSub.output.trim() === "") && initialSub.output && initialSub.output.trim() !== "") {
-                            existingSub.output = initialSub.output;
-                            needSaveSub = true;
-                        }
-                    }
-                }
-            }
-
-            if (needSaveMain) {
-                await saveData(MAIN_EXP_KEY, mainExperiments);
-            }
-            if (needSaveSub) {
-                await saveData(SUB_EXP_KEY, subExperiments);
+            } else {
+                [profile, modules, mainExperiments, subExperiments] = await Promise.all([
+                    loadData(PROFILE_KEY, initial.profile || defaultProfile),
+                    loadData(MODULE_KEY, initial.modules || []),
+                    loadData(MAIN_EXP_KEY, initial.mainExperiments || []),
+                    loadData(SUB_EXP_KEY, initial.subExperiments || [])
+                ]);
             }
         } finally {
             document.body.inert = false;

@@ -2409,3 +2409,37 @@ a:focus-visible,
         margin: 0;
     }
 }
+
+/* =====================================================
+   READ-ONLY PUBLICATION MODE
+   Remove all edit, delete, and add controls
+   ===================================================== */
+.photo-edit,
+.edit-profile-btn,
+.edit-btn,
+.delete-btn,
+.nested-sub-action,
+.main-exp-photo-edit,
+#addMainExperimentButton,
+#addSubExperimentButton,
+#editSubBtn,
+#readModuleEditButton,
+#profileModal,
+#moduleModal,
+#mainExperimentModal,
+#subExperimentModal {
+    display: none !important;
+}
+
+.module-actions .read-btn {
+    width: 100%;
+    text-align: center;
+    padding: 9px 14px;
+    font-size: 13px;
+    border-radius: 7px;
+}
+
+#codeEditor[readonly] {
+    cursor: default;
+    user-select: text;
+}

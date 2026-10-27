@@ -70,8 +70,6 @@
         <div class="profile-card">
             <div class="photo-wrapper">
                 <img id="profilePhoto" src="" alt="ID Photo">
-                <label for="profilePhotoInput" class="photo-edit" aria-label="Change ID photo">✎</label>
-                <input type="file" id="profilePhotoInput" accept="image/*" hidden>
             </div>
 
             <div class="profile-details">
@@ -80,10 +78,6 @@
                 <p><strong>Branch:</strong> <span id="profileBranch">DS</span></p>
                 <p><strong>Faculty:</strong> <span id="profileFaculty">Bose Babu</span></p>
             </div>
-
-            <button class="edit-profile-btn" type="button" onclick="openProfileModal()">
-                ✎ Edit
-            </button>
         </div>
     </section>
 </main>
@@ -96,12 +90,8 @@
     <div class="section-title">
         <div>
             <h2>Modules</h2>
-            <p>Manage your Data Science learning modules</p>
+            <p>Explore your Data Science learning modules</p>
         </div>
-
-        <button class="primary-btn" onclick="openAddModuleModal()">
-            + Add Module
-        </button>
     </div>
 
     <div id="moduleList" class="module-grid"></div>
@@ -121,7 +111,7 @@
     <div class="section-title">
         <div>
             <h2>Experiments</h2>
-            <p>Add and manage your Data Science experiments</p>
+            <p>Explore your Data Science experiments</p>
         </div>
     </div>
 
@@ -137,19 +127,6 @@
 
             <div id="mainExpList" class="panel-list"></div>
 
-            <button id="addMainExperimentButton"
-                    class="add-panel-btn"
-                    onclick="openMainExperimentModal()">
-                + Add Main Experiment
-            </button>
-
-            <button id="addSubExperimentButton"
-                    class="add-panel-btn"
-                    onclick="openSubExperimentModal()"
-                    hidden>
-                + Add Sub Experiment
-            </button>
-
         </div>
 
 
@@ -164,14 +141,6 @@
                     </h3>
                     <span id="selectedPdfArea"></span>
                 </div>
-
-                <button
-                    id="editSubBtn"
-                    class="small-btn"
-                    onclick="editSelectedSubExperiment()"
-                    disabled>
-                    ✎ Edit
-                </button>
 
             </div>
 
@@ -205,7 +174,8 @@
 
                 <textarea id="codeEditor"
                           placeholder="Select a sub experiment to view code..."
-                          spellcheck="false"></textarea>
+                          spellcheck="false"
+                          readonly></textarea>
 
                 <div id="outputViewer"
                      role="status"
@@ -584,12 +554,6 @@
             <button class="secondary-btn"
                     onclick="closeReadModuleModal()">
                 Close
-            </button>
-
-            <button class="primary-btn"
-                    id="readModuleEditButton"
-                    onclick="editReadModule()">
-                Edit Module
             </button>
 
         </div>
