@@ -1981,12 +1981,14 @@ function renderPythonOutput(outputViewer, text, images = []) {
         outputViewer.appendChild(textOutput);
     }
 
-    images.forEach((image, index) => {
-        const imageElement = document.createElement("img");
-        imageElement.src = `data:image/png;base64,${image}`;
-        imageElement.alt = `Python plot ${index + 1}`;
-        outputViewer.appendChild(imageElement);
-    });
+    if (Array.isArray(images)) {
+        images.forEach((image, index) => {
+            const imageElement = document.createElement("img");
+            imageElement.src = image.startsWith("data:") ? image : `data:image/png;base64,${image}`;
+            imageElement.alt = `Python plot ${index + 1}`;
+            outputViewer.appendChild(imageElement);
+        });
+    }
 }
 
 
@@ -2085,8 +2087,9 @@ async function copyCode() {
 
 /* ---------- Run Python or HTML ---------- */
 
-// Global variable to cache Pyodide instance
+// Global variable to cache Pyodide instance and loaded packages
 let pyodideInstance = null;
+let pyodideLoadedPackages = new Set();
 
 async function runCode() {
     if (!selectedSubExperimentId) {
@@ -2126,38 +2129,156 @@ async function runCode() {
         if (!pyodideInstance) {
             outputViewer.textContent = "Initializing Pyodide (WebAssembly)...";
             pyodideInstance = await loadPyodide();
-            
-            renderPythonOutput(outputViewer, "Loading Pandas and Matplotlib packages...");
-            await pyodideInstance.loadPackage(["micropip", "matplotlib"]);
-            const micropip = pyodideInstance.pyimport("micropip");
-            await micropip.install("pandas");
+            pyodideLoadedPackages = new Set();
         }
 
+        // Determine needed standard Pyodide packages
+        const standardPackagesToLoad = [];
+        if (!pyodideLoadedPackages.has("pandas")) standardPackagesToLoad.push("pandas");
+        if (!pyodideLoadedPackages.has("matplotlib")) standardPackagesToLoad.push("matplotlib");
+        if (!pyodideLoadedPackages.has("micropip")) standardPackagesToLoad.push("micropip");
+
+        if (/sklearn|scikit-learn/i.test(code) && !pyodideLoadedPackages.has("scikit-learn")) {
+            standardPackagesToLoad.push("scikit-learn");
+        }
+        if (/bs4|BeautifulSoup/i.test(code) && !pyodideLoadedPackages.has("beautifulsoup4")) {
+            standardPackagesToLoad.push("beautifulsoup4");
+        }
+
+        if (standardPackagesToLoad.length > 0) {
+            renderPythonOutput(outputViewer, `Loading packages (${standardPackagesToLoad.join(", ")})... Please wait...`);
+            await pyodideInstance.loadPackage(standardPackagesToLoad);
+            standardPackagesToLoad.forEach(p => pyodideLoadedPackages.add(p));
+        }
+
+        // Determine needed micropip packages
+        const micropipPackagesToInstall = [];
+        if (/seaborn|sns\./i.test(code) && !pyodideLoadedPackages.has("seaborn")) {
+            micropipPackagesToInstall.push("seaborn");
+        }
+        if (/wordcloud|WordCloud/i.test(code) && !pyodideLoadedPackages.has("wordcloud")) {
+            micropipPackagesToInstall.push("wordcloud");
+        }
+        if (/vaderSentiment/i.test(code) && !pyodideLoadedPackages.has("vaderSentiment")) {
+            micropipPackagesToInstall.push("vaderSentiment");
+        }
+        if (/nltk/i.test(code) && !pyodideLoadedPackages.has("nltk")) {
+            micropipPackagesToInstall.push("nltk");
+        }
+
+        if (micropipPackagesToInstall.length > 0) {
+            renderPythonOutput(outputViewer, `Installing packages (${micropipPackagesToInstall.join(", ")})... Please wait...`);
+            const micropip = pyodideInstance.pyimport("micropip");
+            await micropip.install(micropipPackagesToInstall);
+            micropipPackagesToInstall.forEach(p => pyodideLoadedPackages.add(p));
+        }
+
+        renderPythonOutput(outputViewer, "Executing Python code...");
+
+        // Setup Virtual Filesystem, mocked NLTK data & Custom Figure Capturing
         pyodideInstance.runPython(`
-            import sys
-            import io
-            import json
-            import base64
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-            sys.stdout = io.StringIO()
+import sys
+import io
+import json
+import base64
+import os
+import zipfile
+from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+__file__ = "experiment.py"
+
+_captured_images = []
+def _custom_show(*args, **kwargs):
+    for _fig in plt.get_fignums():
+        _buf = io.BytesIO()
+        plt.figure(_fig).savefig(_buf, format="png", bbox_inches="tight")
+        _captured_images.append(base64.b64encode(_buf.getvalue()).decode("ascii"))
+    plt.close("all")
+
+plt.show = _custom_show
+
+# 1. Setup reviews.html
+if not os.path.exists("reviews.html"):
+    with open("reviews.html", "w", encoding="utf-8") as f:
+        f.write('''<!DOCTYPE html><html><body>
+<div class="review"><div class="review-title">Great product</div><div class="review-text">Excellent quality and performance.</div><div class="rating">5 out of 5</div></div>
+<div class="review"><div class="review-title">Not satisfied</div><div class="review-text">The product is terrible and disappointing.</div><div class="rating">2 out of 5</div></div>
+<div class="review"><div class="review-title">Worth buying</div><div class="review-text">Good performance and useful features.</div><div class="rating">4 out of 5</div></div>
+</body></html>''')
+
+# 2. Setup product_reviews.csv
+if not os.path.exists("product_reviews.csv"):
+    with open("product_reviews.csv", "w", encoding="utf-8") as f:
+        f.write("title,review,rating\\nGreat product,Excellent quality and performance.,5 out of 5\\nNot satisfied,The product is terrible and disappointing.,2 out of 5\\nWorth buying,Good performance and useful features.,4 out of 5\\n")
+
+# 3. Setup sentiment_analysis_results.csv
+if not os.path.exists("sentiment_analysis_results.csv"):
+    with open("sentiment_analysis_results.csv", "w", encoding="utf-8") as f:
+        f.write("review,nltk_compound,nltk_sentiment,vader_compound,vader_sentiment\\nExcellent quality and performance.,0.8225,Positive,0.8225,Positive\\nThe product is terrible and disappointing.,-0.7579,Negative,-0.7579,Negative\\nGood performance and useful features.,0.6908,Positive,0.6908,Positive\\n")
+
+# 4. Setup marketing_campaign.csv
+if not os.path.exists("marketing_campaign.csv"):
+    import numpy as np
+    import pandas as pd
+    np.random.seed(42)
+    n = 100
+    df_m = pd.DataFrame({
+        "Income": np.random.normal(55000, 15000, n).clip(15000, 120000).round(2),
+        "MntWines": np.random.exponential(250, n).clip(5, 1500).round(2),
+        "MntFruits": np.random.exponential(30, n).clip(1, 200).round(2),
+        "MntMeatProducts": np.random.exponential(180, n).clip(5, 1000).round(2),
+        "MntFishProducts": np.random.exponential(40, n).clip(1, 250).round(2),
+        "MntSweetProducts": np.random.exponential(30, n).clip(1, 250).round(2),
+        "MntGoldProds": np.random.exponential(50, n).clip(2, 300).round(2)
+    })
+    df_m.to_csv("marketing_campaign.csv", sep="\\t", index=False)
+
+# 5. Setup NLTK data & mock download if nltk is loaded
+if "nltk" in sys.modules:
+    import nltk
+    def _mock_download(*args, **kwargs):
+        return True
+    nltk.download = _mock_download
+
+    nltk_stopwords_dir = Path("/home/pyodide/nltk_data/corpora/stopwords")
+    nltk_stopwords_dir.mkdir(parents=True, exist_ok=True)
+    nltk_stopwords_file = nltk_stopwords_dir / "english"
+    if not nltk_stopwords_file.exists():
+        _sw = "\\n".join(["i", "me", "my", "myself", "we", "our", "ours", "you", "your", "he", "him", "his", "she", "her", "it", "its", "they", "them", "what", "which", "who", "this", "that", "am", "is", "are", "was", "were", "be", "have", "has", "had", "do", "does", "did", "a", "an", "the", "and", "but", "if", "or", "because", "as", "of", "at", "by", "for", "with", "about", "to", "from", "in", "out", "on", "off", "then", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "should", "now"])
+        nltk_stopwords_file.write_text(_sw, encoding="utf-8")
+
+if "vaderSentiment" in sys.modules:
+    import vaderSentiment
+    vader_src = Path(vaderSentiment.__file__).parent / "vader_lexicon.txt"
+    vader_zip_path = Path("/home/pyodide/nltk_data/sentiment/vader_lexicon.zip")
+    vader_zip_path.parent.mkdir(parents=True, exist_ok=True)
+    if not vader_zip_path.exists() and vader_src.exists():
+        with zipfile.ZipFile(vader_zip_path, "w") as zf:
+            zf.writestr("vader_lexicon/vader_lexicon.txt", vader_src.read_text(encoding="utf-8"))
+
+sys.stdout = io.StringIO()
+_captured_images = []
+plt.close("all")
         `);
 
         await pyodideInstance.runPythonAsync(code);
 
         const result = JSON.parse(pyodideInstance.runPython(`
-            _captured_images = []
-            for _figure_number in plt.get_fignums():
-                _buffer = io.BytesIO()
-                plt.figure(_figure_number).savefig(_buffer, format="png", bbox_inches="tight")
-                _captured_images.append(base64.b64encode(_buffer.getvalue()).decode("ascii"))
-            plt.close("all")
-            json.dumps({
-                "text": sys.stdout.getvalue(),
-                "images": _captured_images
-            })
+for _figure_number in plt.get_fignums():
+    _buffer = io.BytesIO()
+    plt.figure(_figure_number).savefig(_buffer, format="png", bbox_inches="tight")
+    _captured_images.append(base64.b64encode(_buffer.getvalue()).decode("ascii"))
+plt.close("all")
+
+json.dumps({
+    "text": sys.stdout.getvalue(),
+    "images": _captured_images
+})
         `));
+
         let output = result.text;
         const outputImages = result.images;
 
@@ -2287,6 +2408,49 @@ document.addEventListener(
                 loadData(MAIN_EXP_KEY, initial.mainExperiments || []),
                 loadData(SUB_EXP_KEY, initial.subExperiments || [])
             ]);
+
+            // Sync mainExperiments and subExperiments from INITIAL_DATA if missing or lacking outputs
+            let needSaveMain = false;
+            let needSaveSub = false;
+
+            if (Array.isArray(initial.mainExperiments)) {
+                for (const initialMain of initial.mainExperiments) {
+                    const existingMain = mainExperiments.find(m => m.id === initialMain.id || m.title === initialMain.title);
+                    if (!existingMain) {
+                        mainExperiments.push(initialMain);
+                        needSaveMain = true;
+                    } else if (!existingMain.photo && initialMain.photo) {
+                        existingMain.photo = initialMain.photo;
+                        needSaveMain = true;
+                    }
+                }
+            }
+
+            if (Array.isArray(initial.subExperiments)) {
+                for (const initialSub of initial.subExperiments) {
+                    const existingSub = subExperiments.find(s => s.id === initialSub.id || (s.title === initialSub.title && s.mainExperimentId === initialSub.mainExperimentId));
+                    if (!existingSub) {
+                        subExperiments.push(initialSub);
+                        needSaveSub = true;
+                    } else {
+                        if ((!existingSub.outputImages || existingSub.outputImages.length === 0) && Array.isArray(initialSub.outputImages) && initialSub.outputImages.length > 0) {
+                            existingSub.outputImages = initialSub.outputImages;
+                            needSaveSub = true;
+                        }
+                        if ((!existingSub.output || existingSub.output.trim() === "") && initialSub.output && initialSub.output.trim() !== "") {
+                            existingSub.output = initialSub.output;
+                            needSaveSub = true;
+                        }
+                    }
+                }
+            }
+
+            if (needSaveMain) {
+                await saveData(MAIN_EXP_KEY, mainExperiments);
+            }
+            if (needSaveSub) {
+                await saveData(SUB_EXP_KEY, subExperiments);
+            }
         } finally {
             document.body.inert = false;
             document.body.removeAttribute("aria-busy");
