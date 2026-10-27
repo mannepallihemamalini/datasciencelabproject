@@ -30,6 +30,7 @@ let mainExperiments = [];
 let subExperiments = [];
 
 let selectedSubExperimentId = null;
+let expandedMainExperimentId = null;
 let selectedReadModuleIndex = null;
 let selectedReadModulePdfUrl = null;
 let pdfDocument = null;
@@ -183,12 +184,9 @@ function getModuleColorTint(color) {
 }
 
 function showPage(page) {
-    const homePage = document.getElementById("homePage");
-    const toolsPage = document.getElementById("toolsPage");
-    const isToolsPage = page === "tools";
-
-    homePage.hidden = isToolsPage;
-    toolsPage.hidden = !isToolsPage;
+    document.querySelectorAll("[data-page-content]").forEach((content) => {
+        content.hidden = content.dataset.pageContent !== page;
+    });
 
     document.querySelectorAll(".page-nav-link").forEach((button) => {
         const isActive = button.dataset.page === page;
@@ -202,6 +200,56 @@ function showPage(page) {
     });
 
     window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetLibrarySearch() {
+    document.querySelectorAll(".module-card, .exp-item, .resource-card").forEach((item) => {
+        item.hidden = false;
+    });
+}
+
+function searchLibrary(event) {
+    event.preventDefault();
+
+    const input = document.getElementById("librarySearch");
+    const query = input.value.trim().toLocaleLowerCase();
+    resetLibrarySearch();
+
+    if (!query) {
+        showToast("Enter a search term.");
+        return;
+    }
+
+    const items = Array.from(
+        document.querySelectorAll(".module-card, .exp-item, .resource-card")
+    );
+    const matches = items.filter((item) =>
+        item.textContent.toLocaleLowerCase().includes(query)
+    );
+
+    if (!matches.length) {
+        const navMatch = Array.from(document.querySelectorAll(".page-nav-link"))
+            .find((button) => button.textContent.trim().toLocaleLowerCase() === query);
+
+        if (navMatch) {
+            showPage(navMatch.dataset.page);
+            return;
+        }
+
+        showToast(`No results found for "${input.value.trim()}".`);
+        return;
+    }
+
+    const matchingItems = new Set(matches);
+    items.forEach((item) => {
+        item.hidden = !matchingItems.has(item);
+    });
+
+    const page = matches[0].closest("[data-page-content]");
+    if (page) {
+        showPage(page.dataset.pageContent);
+    }
+    showToast(`Found ${matches.length} result${matches.length === 1 ? "" : "s"}.`);
 }
 
 
@@ -375,6 +423,14 @@ function handleProfilePhoto(file) {
 
 
 document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("librarySearch");
+    if (searchInput) {
+        searchInput.addEventListener("input", () => {
+            if (!searchInput.value.trim()) {
+                resetLibrarySearch();
+            }
+        });
+    }
 
     const photoInput = document.getElementById("profilePhotoInput");
     if (photoInput) {
@@ -662,6 +718,8 @@ function openReadModuleModal(index) {
 
     closeReadModuleModal();
     selectedReadModuleIndex = index;
+    document.getElementById("readModuleModal").classList.remove("pdf-viewer-full-width");
+    document.getElementById("readModuleModal").classList.add("module-pdf-only");
 
     document.getElementById("readModuleTitle").textContent =
         module.title;
@@ -678,6 +736,7 @@ function openReadModuleModal(index) {
 
     document.getElementById("readModuleDescriptionBox").hidden = false;
     document.getElementById("readModuleTopicsBox").hidden = false;
+    document.getElementById("readModuleInfo").hidden = false;
     document.getElementById("readModuleEditButton").hidden = false;
     document.getElementById("readModulePdfBox").innerHTML =
         createPdfViewerMarkup();
@@ -697,6 +756,8 @@ function openReadModuleModal(index) {
 function openPdfFlipbook() {
     closeReadModuleModal();
     selectedReadModuleIndex = null;
+    document.getElementById("readModuleModal").classList.remove("module-pdf-only");
+    document.getElementById("readModuleModal").classList.add("pdf-viewer-full-width");
 
     document.getElementById("readModuleTitle").textContent =
         "PDF Flipbook";
@@ -704,6 +765,7 @@ function openPdfFlipbook() {
         "Upload and read your own PDF";
     document.getElementById("readModuleDescriptionBox").hidden = true;
     document.getElementById("readModuleTopicsBox").hidden = true;
+    document.getElementById("readModuleInfo").hidden = true;
     document.getElementById("readModuleEditButton").hidden = true;
     document.getElementById("readModulePdfBox").innerHTML =
         createPdfViewerMarkup();
@@ -722,12 +784,15 @@ function openSubExperimentPdf(index) {
 
     closeReadModuleModal();
     selectedReadModuleIndex = null;
+    document.getElementById("readModuleModal").classList.remove("module-pdf-only");
+    document.getElementById("readModuleModal").classList.add("pdf-viewer-full-width");
     document.getElementById("readModuleTitle").textContent =
         sub.title + " PDF";
     document.getElementById("readModuleSubtitle").textContent =
         "Sub experiment document";
     document.getElementById("readModuleDescriptionBox").hidden = true;
     document.getElementById("readModuleTopicsBox").hidden = true;
+    document.getElementById("readModuleInfo").hidden = true;
     document.getElementById("readModuleEditButton").hidden = true;
     document.getElementById("readModulePdfBox").innerHTML =
         createPdfViewerMarkup();
@@ -903,9 +968,18 @@ async function renderPdfPage() {
     const canvas = document.getElementById("pdfCanvas");
     const context = canvas.getContext("2d");
     const availableWidth = Math.max(160, stage.clientWidth - 36);
-    const fitScale = Math.min(1.35, availableWidth / page.getViewport({ scale: 1 }).width);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const modal = document.getElementById("readModuleModal");
+    const fitToScreen = modal.classList.contains("module-pdf-only") ||
+        modal.classList.contains("pdf-viewer-full-width");
+    const availableHeight = Math.max(160, stage.clientHeight - 36);
+    const fitScale = Math.min(
+        1.35,
+        availableWidth / baseViewport.width,
+        fitToScreen ? availableHeight / baseViewport.height : 1.35
+    );
     const viewport = page.getViewport({ scale: fitScale * pdfZoom });
-    const outputScale = window.devicePixelRatio || 1;
+    const outputScale = Math.min(3, Math.max(window.devicePixelRatio || 1, 2));
 
     canvas.width = Math.floor(viewport.width * outputScale);
     canvas.height = Math.floor(viewport.height * outputScale);
@@ -1141,21 +1215,48 @@ async function saveMainExperiment() {
     closeMainExperimentModal();
 }
 
-
-/* ---------- Render Main Experiments ---------- */
-
-function toAlphabeticLabel(index) {
-    let label = "";
-    let value = index + 1;
-
-    while (value > 0) {
-        value -= 1;
-        label = String.fromCharCode(97 + (value % 26)) + label;
-        value = Math.floor(value / 26);
+async function handleMainExperimentPhoto(experimentId, file) {
+    if (!file) {
+        return;
     }
 
-    return label;
+    if (!file.type.startsWith("image/")) {
+        showToast("Please select an image file.");
+        return;
+    }
+
+    const experiment = mainExperiments.find(exp => exp.id === experimentId);
+    if (!experiment) {
+        showToast("Unable to find this main experiment.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+        if (typeof reader.result !== "string") {
+            showToast("Unable to read the selected image.");
+            return;
+        }
+
+        const previousPhoto = experiment.photo;
+        experiment.photo = reader.result;
+
+        if (!(await saveData(MAIN_EXP_KEY, mainExperiments))) {
+            experiment.photo = previousPhoto;
+            return;
+        }
+
+        renderMainExperiments();
+        showToast("Experiment photo updated.");
+    };
+    reader.onerror = () => {
+        showToast("Unable to read the selected image.");
+    };
+    reader.readAsDataURL(file);
 }
+
+
+/* ---------- Render Main Experiments ---------- */
 
 function getSubExperimentSerial(index) {
     const sub = subExperiments[index];
@@ -1167,7 +1268,7 @@ function getSubExperimentSerial(index) {
         .filter(item => item.mainExperimentId === sub.mainExperimentId)
         .length - 1;
 
-    return `${mainIndex === -1 ? "?" : mainIndex + 1}${toAlphabeticLabel(subIndex)}`;
+    return `${mainIndex === -1 ? "?" : mainIndex + 1}.${subIndex + 1}`;
 }
 
 function renderMainExperiments() {
@@ -1182,15 +1283,44 @@ function renderMainExperiments() {
 
     list.innerHTML = "";
 
+    if (
+        expandedMainExperimentId &&
+        !mainExperiments.some(exp => exp.id === expandedMainExperimentId)
+    ) {
+        expandedMainExperimentId = null;
+    }
+
     if (count) {
         count.textContent = mainExperiments.length;
+    }
+
+    const addMainButton = document.getElementById("addMainExperimentButton");
+    const addSubButton = document.getElementById("addSubExperimentButton");
+    if (addMainButton) addMainButton.hidden = Boolean(expandedMainExperimentId);
+    if (addSubButton) addSubButton.hidden = !expandedMainExperimentId;
+
+    if (expandedMainExperimentId) {
+        const backButton = document.createElement("button");
+        backButton.type = "button";
+        backButton.className = "main-exp-back";
+        backButton.textContent = "← All main experiments";
+        backButton.addEventListener("click", () => {
+            expandedMainExperimentId = null;
+            selectedSubExperimentId = null;
+            renderExperiments();
+            renderCodePanel();
+        });
+        list.appendChild(backButton);
+        list.classList.add("focused-main-experiment");
+    } else {
+        list.classList.remove("focused-main-experiment");
     }
 
 
     if (mainExperiments.length === 0) {
 
         list.innerHTML = `
-            <div class="empty-message">
+            <div class="empty-message experiment-empty">
                 No experiments added.
             </div>
         `;
@@ -1199,42 +1329,172 @@ function renderMainExperiments() {
     }
 
 
-    mainExperiments.forEach((exp, index) => {
+    const visibleExperiments = expandedMainExperimentId
+        ? mainExperiments.filter(exp => exp.id === expandedMainExperimentId)
+        : mainExperiments;
 
-        const item =
-            document.createElement("div");
+    visibleExperiments.forEach(exp => {
+        const index = mainExperiments.indexOf(exp);
+        const subItems = subExperiments
+            .map((sub, subIndex) => ({ sub, subIndex }))
+            .filter(({ sub }) => sub.mainExperimentId === exp.id);
+        const isExpanded = expandedMainExperimentId === exp.id;
+        const item = document.createElement("article");
+        item.className = "main-exp-card" + (isExpanded ? " expanded" : "");
 
-        item.className = "exp-item";
+        const picture = document.createElement("div");
+        picture.className = "main-exp-picture";
+        if (exp.photo) {
+            const image = document.createElement("img");
+            image.src = exp.photo;
+            image.alt = `${exp.title} photo`;
+            picture.appendChild(image);
+        } else {
+            picture.innerHTML = `
+                <svg viewBox="0 0 64 64" focusable="false">
+                    <rect x="10" y="10" width="44" height="44" rx="10"></rect>
+                    <path d="M20 42V32M30 42V23M40 42V28M50 42V18"></path>
+                </svg>
+            `;
+        }
 
-        item.innerHTML = `
+        const photoInputId = `main-exp-photo-${exp.id}`;
+        const photoInput = document.createElement("input");
+        photoInput.type = "file";
+        photoInput.id = photoInputId;
+        photoInput.accept = "image/*";
+        photoInput.hidden = true;
+        photoInput.addEventListener("change", () => {
+            handleMainExperimentPhoto(exp.id, photoInput.files[0]);
+            photoInput.value = "";
+        });
 
-            <div class="exp-item-title">
-                ${index + 1}. ${escapeHTML(exp.title)}
-            </div>
+        const photoEdit = document.createElement("button");
+        photoEdit.type = "button";
+        photoEdit.className = "main-exp-photo-edit";
+        photoEdit.textContent = "Edit photo";
+        photoEdit.addEventListener("click", () => photoInput.click());
+        picture.append(photoEdit, photoInput);
 
-            <div class="exp-item-desc">
-                ${escapeHTML(exp.description || "")}
-            </div>
-
-            <div class="item-actions">
-
-                <button
-                    class="edit-btn"
-                    onclick="event.stopPropagation();
-                    openMainExperimentModal(${index})">
-                    Edit
-                </button>
-
-                <button
-                    class="delete-btn"
-                    onclick="event.stopPropagation();
-                    deleteMainExperiment(${index})">
-                    Delete
-                </button>
-
-            </div>
+        const details = document.createElement("div");
+        details.className = "main-exp-details";
+        details.innerHTML = `
+            <span class="main-exp-number">Experiment ${index + 1}</span>
+            <span class="main-exp-title">${escapeHTML(exp.title)}</span>
+            <span class="main-exp-sub-count">${subItems.length}
+                ${subItems.length === 1 ? "sub experiment" : "sub experiments"}
+            </span>
         `;
 
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "main-exp-toggle";
+        toggle.setAttribute("aria-expanded", String(isExpanded));
+        toggle.setAttribute("aria-label", `${isExpanded ? "Collapse" : "Open"} experiment ${index + 1}`);
+        toggle.append(details);
+        toggle.addEventListener("click", () => {
+            expandedMainExperimentId = isExpanded ? null : exp.id;
+            selectedSubExperimentId = null;
+            renderMainExperiments();
+            renderCodePanel();
+        });
+
+        const actions = document.createElement("div");
+        actions.className = "item-actions main-exp-actions";
+        actions.innerHTML = `
+            <button type="button" class="edit-btn">Edit</button>
+            <button type="button" class="delete-btn">Delete</button>
+        `;
+        actions.querySelector(".edit-btn").addEventListener("click", () => {
+            openMainExperimentModal(index);
+        });
+        actions.querySelector(".delete-btn").addEventListener("click", () => {
+            deleteMainExperiment(index);
+        });
+
+        const head = document.createElement("div");
+        head.className = "main-exp-card-head";
+        head.append(picture, toggle);
+        item.appendChild(head);
+
+        if (exp.description) {
+            const description = document.createElement("p");
+            description.className = "main-exp-description";
+            description.textContent = exp.description;
+            item.appendChild(description);
+        }
+
+        const nested = document.createElement("div");
+        nested.className = "nested-sub-experiments";
+        nested.hidden = !isExpanded;
+
+        if (subItems.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "nested-sub-empty";
+            empty.textContent = "No sub experiments yet.";
+            nested.appendChild(empty);
+        } else {
+            subItems.forEach(({ sub, subIndex }) => {
+                const row = document.createElement("div");
+                row.className = "nested-sub-row" +
+                    (selectedSubExperimentId === sub.id ? " active" : "");
+
+                const select = document.createElement("button");
+                select.type = "button";
+                select.className = "nested-sub-select";
+                select.addEventListener("click", () => {
+                    selectedSubExperimentId = sub.id;
+                    expandedMainExperimentId = exp.id;
+                    renderExperiments();
+                    renderCodePanel();
+                });
+
+                if (Array.isArray(sub.outputImages) && sub.outputImages.length > 0) {
+                    const thumbnail = document.createElement("img");
+                    const source = sub.outputImages[0];
+                    thumbnail.src = source.startsWith("data:image/")
+                        ? source
+                        : `data:image/png;base64,${source}`;
+                    thumbnail.alt = "";
+                    thumbnail.className = "nested-sub-picture";
+                    select.appendChild(thumbnail);
+                } else {
+                    const thumbnail = document.createElement("span");
+                    thumbnail.className = "nested-sub-picture nested-sub-picture-placeholder";
+                    thumbnail.setAttribute("aria-hidden", "true");
+                    select.appendChild(thumbnail);
+                }
+
+                const subDetails = document.createElement("span");
+                subDetails.className = "nested-sub-details";
+                subDetails.innerHTML = `
+                    <span class="nested-sub-title">
+                        ${getSubExperimentSerial(subIndex)}. ${escapeHTML(sub.title)}
+                    </span>
+                    <span class="nested-sub-meta">${sub.pdf ? "PDF attached" : "Code and output"}</span>
+                `;
+                select.appendChild(subDetails);
+                row.appendChild(select);
+
+                const editButton = document.createElement("button");
+                editButton.type = "button";
+                editButton.className = "nested-sub-action";
+                editButton.textContent = "Edit";
+                editButton.addEventListener("click", () => openSubExperimentModal(subIndex));
+                row.appendChild(editButton);
+
+                const deleteButton = document.createElement("button");
+                deleteButton.type = "button";
+                deleteButton.className = "nested-sub-action nested-sub-delete";
+                deleteButton.textContent = "Delete";
+                deleteButton.addEventListener("click", () => deleteSubExperiment(subIndex));
+                row.appendChild(deleteButton);
+                nested.appendChild(row);
+            });
+        }
+
+        item.appendChild(nested);
+        item.appendChild(actions);
         list.appendChild(item);
     });
 }
@@ -1257,6 +1517,9 @@ async function deleteMainExperiment(index) {
         subExperiments.filter(
             sub => sub.mainExperimentId !== mainId
         );
+    if (expandedMainExperimentId === mainId) {
+        expandedMainExperimentId = null;
+    }
 
     const mainSaved = await saveData(
         MAIN_EXP_KEY,
@@ -1332,6 +1595,9 @@ function openSubExperimentModal(
 
 
     if (editIndex === null) {
+        if (select && expandedMainExperimentId) {
+            select.value = expandedMainExperimentId;
+        }
 
         document.getElementById(
             "subExperimentModalTitle"
@@ -1528,6 +1794,7 @@ async function saveSubExperiment() {
         return;
     }
 
+    expandedMainExperimentId = mainId;
     showToast(editIndex !== ""
         ? "Sub experiment updated."
         : "Sub experiment added.");
@@ -1536,107 +1803,6 @@ async function saveSubExperiment() {
     renderCodePanel();
 
     closeSubExperimentModal();
-}
-
-
-/* ---------- Render Sub Experiments ---------- */
-
-function renderSubExperiments() {
-
-    const list =
-        document.getElementById("subExpList");
-
-    const count =
-        document.getElementById("subExpCount");
-
-    if (!list) return;
-
-    list.innerHTML = "";
-
-    if (count) {
-        count.textContent = subExperiments.length;
-    }
-
-
-    if (subExperiments.length === 0) {
-
-        list.innerHTML = `
-            <div class="empty-message">
-                No sub experiments.
-            </div>
-        `;
-
-        return;
-    }
-
-
-    subExperiments.forEach((sub, index) => {
-
-        const parent =
-            mainExperiments.find(
-                exp =>
-                    exp.id === sub.mainExperimentId
-            );
-
-
-        const item =
-            document.createElement("div");
-
-        item.className =
-            "exp-item" +
-            (
-                selectedSubExperimentId === sub.id
-                    ? " active"
-                    : ""
-            );
-
-
-        item.onclick = () => {
-
-            selectedSubExperimentId =
-                sub.id;
-
-            renderExperiments();
-
-            renderCodePanel();
-        };
-
-
-        item.innerHTML = `
-
-            <div class="exp-item-title">
-                ${getSubExperimentSerial(index)}. ${escapeHTML(sub.title)}
-            </div>
-
-            <div class="exp-item-desc">
-                ${escapeHTML(
-                    parent
-                        ? `Main Experiment ${mainExperiments.indexOf(parent) + 1}: ${parent.title}`
-                        : "Unknown Experiment"
-                )}
-            </div>
-
-            <div class="item-actions">
-
-                <button
-                    class="edit-btn"
-                    onclick="event.stopPropagation();
-                    openSubExperimentModal(${index})">
-                    Edit
-                </button>
-
-                <button
-                    class="delete-btn"
-                    onclick="event.stopPropagation();
-                    deleteSubExperiment(${index})">
-                    Delete
-                </button>
-
-            </div>
-        `;
-
-        list.appendChild(item);
-    });
 }
 
 
@@ -1715,6 +1881,8 @@ function editSelectedSubExperiment() {
    ===================================================== */
 
 function renderCodePanel() {
+    const panel = document.querySelector(".experiments-section .code-panel");
+    const layout = document.querySelector(".experiments-section .experiment-layout");
 
     const title =
         document.getElementById(
@@ -1741,13 +1909,23 @@ function renderCodePanel() {
             "selectedPdfArea"
         );
 
+    const selectedSub = subExperiments.find(
+        item =>
+            item.id === selectedSubExperimentId &&
+            item.mainExperimentId === expandedMainExperimentId
+    );
 
-    const sub =
-        subExperiments.find(
-            item =>
-                item.id ===
-                selectedSubExperimentId
+    clearHtmlPreview();
+
+    if (panel) panel.hidden = !selectedSub;
+    if (layout) {
+        layout.classList.toggle(
+            "has-selected-sub-experiment",
+            Boolean(selectedSub)
         );
+    }
+
+    const sub = selectedSub;
 
 
     if (!sub) {
@@ -1792,6 +1970,8 @@ function renderCodePanel() {
 }
 
 function renderPythonOutput(outputViewer, text, images = []) {
+    clearHtmlPreview();
+    outputViewer.classList.remove("html-output");
     outputViewer.replaceChildren();
 
     if (text) {
@@ -1811,6 +1991,31 @@ function renderPythonOutput(outputViewer, text, images = []) {
 
 
 /* ---------- Code Tab ---------- */
+
+let htmlPreviewUrl = null;
+
+function clearHtmlPreview() {
+    if (htmlPreviewUrl) {
+        URL.revokeObjectURL(htmlPreviewUrl);
+        htmlPreviewUrl = null;
+    }
+}
+
+function renderHtmlPreview(outputViewer, html) {
+    clearHtmlPreview();
+    outputViewer.replaceChildren();
+    outputViewer.classList.add("html-output");
+
+    const htmlFile = new Blob([html], { type: "text/html" });
+    htmlPreviewUrl = URL.createObjectURL(htmlFile);
+
+    const preview = document.createElement("iframe");
+    preview.className = "html-preview";
+    preview.title = "HTML experiment preview";
+    preview.setAttribute("sandbox", "allow-scripts allow-forms");
+    preview.src = htmlPreviewUrl;
+    outputViewer.appendChild(preview);
+}
 
 function showCodeTab() {
 
@@ -1878,7 +2083,7 @@ async function copyCode() {
 }
 
 
-/* ---------- Run Python ---------- */
+/* ---------- Run Python or HTML ---------- */
 
 // Global variable to cache Pyodide instance
 let pyodideInstance = null;
@@ -1897,6 +2102,22 @@ async function runCode() {
     }
 
     const outputViewer = document.getElementById("outputViewer");
+    if (/^\s*</.test(code)) {
+        try {
+            renderHtmlPreview(outputViewer, code);
+            showOutputTab();
+            showToast("HTML experiment opened.");
+        } catch (error) {
+            renderPythonOutput(
+                outputViewer,
+                "HTML preview error:\n" + error.message
+            );
+            showOutputTab();
+            showToast("HTML preview failed.");
+        }
+        return;
+    }
+
     renderPythonOutput(outputViewer, "Loading Python environment and plotting support... Please wait...");
     showOutputTab();
 
@@ -1972,7 +2193,6 @@ async function runCode() {
 function renderExperiments() {
 
     renderMainExperiments();
-    renderSubExperiments();
 }
 
 

@@ -14,76 +14,81 @@
 
 <!-- ================= HEADER ================= -->
 <header class="top-header">
-
-    <div class="brand">
-        <div>
-            <h1>Data Science Digital Library</h1>
-            <p>Learning • Modules • Experiments • Tools &amp; Resources</p>
-        </div>
-    </div>
-
-    <div class="profile-card">
-
-        <div class="photo-wrapper">
-            <img id="profilePhoto"
-                 src=""
-                 alt="ID Photo">
-            <label for="profilePhotoInput" class="photo-edit">✎</label>
-            <input type="file"
-                   id="profilePhotoInput"
-                   accept="image/*"
-                   hidden>
-        </div>
-
-        <div class="profile-details">
-            <h3 id="profileName">M. Hemamalini</h3>
-
-            <p>
-                <strong>Roll No:</strong>
-                <span id="profileRoll">24102A030060</span>
-            </p>
-
-            <p>
-                <strong>Branch:</strong>
-                <span id="profileBranch">DS</span>
-            </p>
-
-            <p>
-                <strong>Faculty:</strong>
-                <span id="profileFaculty">Bose Babu</span>
-            </p>
-        </div>
-
-        <button class="edit-profile-btn" onclick="openProfileModal()">
-            ✎ Edit
+    <nav class="page-nav" aria-label="Main navigation">
+        <button class="page-nav-link active"
+                type="button"
+                data-page="home"
+                aria-current="page"
+                onclick="showPage('home')">
+            Home
         </button>
-
-    </div>
+        <button class="page-nav-link"
+                type="button"
+                data-page="modules"
+                onclick="showPage('modules')">
+            Modules
+        </button>
+        <button class="page-nav-link"
+                type="button"
+                data-page="experiments"
+                onclick="showPage('experiments')">
+            Experiments
+        </button>
+        <button class="page-nav-link"
+                type="button"
+                data-page="tools"
+                onclick="showPage('tools')">
+            Tools
+        </button>
+        <button class="page-nav-link"
+                type="button"
+                data-page="resources"
+                onclick="showPage('resources')">
+            Resources
+        </button>
+        <form class="site-search" role="search" onsubmit="searchLibrary(event)">
+            <input id="librarySearch"
+                   type="search"
+                   aria-label="Search the digital library"
+                   placeholder="Search">
+            <button type="submit" aria-label="Search">Search</button>
+        </form>
+    </nav>
 </header>
 
-<nav class="page-nav" aria-label="Main navigation">
-    <button class="page-nav-link active"
-            type="button"
-            data-page="home"
-            aria-current="page"
-            onclick="showPage('home')">
-        Home
-    </button>
-    <button class="page-nav-link"
-            type="button"
-            data-page="tools"
-            onclick="showPage('tools')">
-        Tools &amp; Resources
-    </button>
-    <button class="page-nav-link"
-            type="button"
-            onclick="openPdfFlipbook()">
-        PDF Flipbook
-    </button>
-</nav>
+<main id="homePage" data-page-content="home">
+    <section class="section-card home-welcome">
+        <div class="home-copy">
+            <h1>Data Science Digital Library</h1>
+            <p>Choose a section to continue learning, managing experiments, or exploring useful links.</p>
+            <div class="home-actions">
+                <button class="primary-btn" type="button" onclick="showPage('modules')">Browse Modules</button>
+                <button class="primary-btn" type="button" onclick="showPage('experiments')">View Experiments</button>
+            </div>
+        </div>
 
-<main id="homePage">
+        <div class="profile-card">
+            <div class="photo-wrapper">
+                <img id="profilePhoto" src="" alt="ID Photo">
+                <label for="profilePhotoInput" class="photo-edit" aria-label="Change ID photo">✎</label>
+                <input type="file" id="profilePhotoInput" accept="image/*" hidden>
+            </div>
 
+            <div class="profile-details">
+                <h3 id="profileName">M. Hemamalini</h3>
+                <p><strong>Roll No:</strong> <span id="profileRoll">24102A030060</span></p>
+                <p><strong>Branch:</strong> <span id="profileBranch">DS</span></p>
+                <p><strong>Faculty:</strong> <span id="profileFaculty">Bose Babu</span></p>
+            </div>
+
+            <button class="edit-profile-btn" type="button" onclick="openProfileModal()">
+                ✎ Edit
+            </button>
+        </div>
+    </section>
+</main>
+
+<main id="modulesPage" data-page-content="modules" hidden>
 <!-- ================= MODULE SECTION ================= -->
 
 <section class="section-card modules-section">
@@ -106,8 +111,9 @@
     </div>
 
 </section>
+</main>
 
-
+<main id="experimentsPage" data-page-content="experiments" hidden>
 <!-- ================= EXPERIMENT SECTION ================= -->
 
 <section class="section-card experiments-section">
@@ -125,30 +131,22 @@
         <div class="experiment-panel">
 
             <div class="panel-header">
-                <span>Main Experiments</span>
+                <span>Experiments</span>
                 <span id="mainExpCount" class="count-badge">0</span>
             </div>
 
             <div id="mainExpList" class="panel-list"></div>
 
-            <button class="add-panel-btn" onclick="openMainExperimentModal()">
+            <button id="addMainExperimentButton"
+                    class="add-panel-btn"
+                    onclick="openMainExperimentModal()">
                 + Add Main Experiment
             </button>
 
-        </div>
-
-
-        <!-- SUB EXPERIMENTS -->
-        <div class="experiment-panel">
-
-            <div class="panel-header">
-                <span>Sub Experiments</span>
-                <span id="subExpCount" class="count-badge">0</span>
-            </div>
-
-            <div id="subExpList" class="panel-list"></div>
-
-            <button class="add-panel-btn" onclick="openSubExperimentModal()">
+            <button id="addSubExperimentButton"
+                    class="add-panel-btn"
+                    onclick="openSubExperimentModal()"
+                    hidden>
                 + Add Sub Experiment
             </button>
 
@@ -221,12 +219,10 @@
     </div>
 
 </section>
-
 </main>
 
-<!-- ================= TOOLS AND RESOURCES PAGE ================= -->
-<main id="toolsPage" hidden>
-
+<!-- ================= TOOLS PAGE ================= -->
+<main id="toolsPage" data-page-content="tools" hidden>
     <section class="section-card">
         <div class="section-title">
             <div>
@@ -326,7 +322,10 @@
             </article>
         </div>
     </section>
+</main>
 
+<!-- ================= RESOURCES PAGE ================= -->
+<main id="resourcesPage" data-page-content="resources" hidden>
     <section class="section-card">
         <div class="section-title">
             <div>
@@ -538,7 +537,7 @@
 
 <!-- ================= READ MODULE MODAL ================= -->
 
-<div id="readModuleModal" class="modal" hidden>
+<div id="readModuleModal" class="modal read-module-screen" hidden>
 
     <div class="modal-box large-modal pdf-modal">
 
@@ -558,22 +557,24 @@
 
         <div class="modal-body">
 
-            <div id="readModuleDescriptionBox" class="detail-box">
+            <aside id="readModuleInfo" class="read-module-info">
+                <div id="readModuleDescriptionBox" class="detail-box">
 
-                <h4>Description</h4>
-                <p id="readModuleDescription"></p>
+                    <h4>Description</h4>
+                    <p id="readModuleDescription"></p>
 
-            </div>
+                </div>
 
-            <div id="readModuleTopicsBox" class="detail-box">
+                <div id="readModuleTopicsBox" class="detail-box">
 
-                <h4>Topics</h4>
-                <p id="readModuleTopics"></p>
+                    <h4>Topics</h4>
+                    <p id="readModuleTopics"></p>
 
-            </div>
+                </div>
+            </aside>
 
             <div id="readModulePdfBox"
-                 class="detail-box">
+                 class="read-module-pdf">
             </div>
 
         </div>
